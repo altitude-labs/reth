@@ -114,7 +114,7 @@ pub struct RpcServerArgs {
 
     /// Set the private transaction broadcast mode. Transactions will be broadcasted to the major
     /// ethereum block builders.
-    #[arg(long = "rpc.private-sending", alias = "rpc-private-sending", default_value = "false")]
+    #[arg(long = "rpc.private-broadcasting", alias = "rpc-private-broadcasting", default_value = "false")]
     pub rpc_private_tx_broadcasting: bool,
 
     /// Hex encoded JWT secret to authenticate the regular RPC server(s), see `--http.api` and

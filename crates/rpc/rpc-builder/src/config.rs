@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn test_private_tx_broadcasting() {
         let args =
-            CommandParser::<RpcServerArgs>::parse_from(["reth", "--rpc-private-sending"]).args;
+            CommandParser::<RpcServerArgs>::parse_from(["reth", "--rpc-private-broadcasting"]).args;
 
         let config = args.eth_config();
         assert_eq!(config.private_tx_broadcasting, true);
