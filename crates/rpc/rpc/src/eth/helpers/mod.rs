@@ -5,9 +5,11 @@ pub mod signer;
 pub mod types;
 
 mod block;
+mod builders;
 mod call;
 mod fees;
 mod pending_block;
+mod private;
 mod receipt;
 mod spec;
 mod state;

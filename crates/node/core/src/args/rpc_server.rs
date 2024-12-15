@@ -112,6 +112,11 @@ pub struct RpcServerArgs {
     #[arg(long = "auth-ipc.path", default_value_t = constants::DEFAULT_ENGINE_API_IPC_ENDPOINT.to_string())]
     pub auth_ipc_path: String,
 
+    /// Set the private transaction broadcast mode. Transactions will be broadcasted to the major
+    /// ethereum block builders.
+    #[arg(long = "rpc.private-sending", alias = "rpc-private-sending", default_value = "false")]
+    pub rpc_private_tx_broadcasting: bool,
+
     /// Hex encoded JWT secret to authenticate the regular RPC server(s), see `--http.api` and
     /// `--ws.api`.
     ///
@@ -295,6 +300,12 @@ impl RpcServerArgs {
         self = self.with_ipc_random_path();
         self
     }
+
+    /// Set the private transaction broadcast mode.
+    pub const fn with_private_tx_broadcasting(mut self) -> Self {
+        self.rpc_private_tx_broadcasting = true;
+        self
+    }
 }
 
 impl Default for RpcServerArgs {
@@ -332,6 +343,7 @@ impl Default for RpcServerArgs {
             rpc_state_cache: RpcStateCacheArgs::default(),
             rpc_proof_permits: constants::DEFAULT_PROOF_PERMITS,
             builder_disallow: Default::default(),
+            rpc_private_tx_broadcasting: false,
         }
     }
 }

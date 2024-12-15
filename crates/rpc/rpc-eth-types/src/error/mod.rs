@@ -40,6 +40,9 @@ pub type EthResult<T> = Result<T, EthApiError>;
 /// Errors that can occur when interacting with the `eth_` namespace
 #[derive(Debug, thiserror::Error)]
 pub enum EthApiError {
+    /// When a private transaction fails to be sent to the builders
+    #[error("private transaction error: {0}")]
+    PrivateTransactionError(#[from] PrivateTransactionError),
     /// When a raw transaction is empty
     #[error("empty transaction data")]
     EmptyRawTransactionData,
@@ -221,6 +224,10 @@ impl From<EthApiError> for jsonrpsee_types::error::ErrorObject<'static> {
             err @ EthApiError::TransactionInputError(_) => invalid_params_rpc_err(err.to_string()),
             EthApiError::Other(err) => err.to_rpc_error(),
             EthApiError::MuxTracerError(msg) => internal_rpc_err(msg.to_string()),
+            EthApiError::PrivateTransactionError(err) => rpc_error_with_code(
+                EthRpcErrorCode::TransactionRejected.code(),
+                err.to_string(),
+            ),
         }
     }
 }
@@ -761,6 +768,17 @@ pub fn ensure_success(result: ExecutionResult) -> EthResult<Bytes> {
             Err(RpcInvalidTransactionError::halt(reason, gas_used).into())
         }
     }
+}
+
+/// Errors returned from a failed private transaction.
+#[derive(Debug, thiserror::Error)]
+pub enum PrivateTransactionError {
+    /// Error occured when no builders are available.
+    #[error("No builders available")]
+    FailedToGetBuilders,
+    /// Error occured when all builders requested to send the transaction failed.
+    #[error("All builders failed to send tx")]
+    AllBuildersFailed,
 }
 
 #[cfg(test)]

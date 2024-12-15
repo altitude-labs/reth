@@ -103,6 +103,7 @@ impl RethRpcServerConfig for RpcServerArgs {
             .state_cache(self.state_cache_config())
             .gpo_config(self.gas_price_oracle_config())
             .proof_permits(self.rpc_proof_permits)
+            .private_tx_broadcasting(self.rpc_private_tx_broadcasting)
     }
 
     fn flashbots_config(&self) -> ValidationApiConfig {
@@ -380,5 +381,14 @@ mod tests {
         let config = args.eth_config().filter_config();
         assert_eq!(config.max_blocks_per_filter, Some(100));
         assert_eq!(config.max_logs_per_response, Some(200));
+    }
+
+    #[test]
+    fn test_private_tx_broadcasting() {
+        let args =
+            CommandParser::<RpcServerArgs>::parse_from(["reth", "--rpc-private-sending"]).args;
+
+        let config = args.eth_config();
+        assert_eq!(config.private_tx_broadcasting, true);
     }
 }
