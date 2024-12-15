@@ -7,8 +7,10 @@ use reth_rpc_eth_api::{
     helpers::{EthSigner, EthTransactions, LoadTransaction, SpawnBlocking},
     FromEthApiError, FullEthApiTypes, RpcNodeCore, RpcNodeCoreExt,
 };
-use reth_rpc_eth_types::utils::recover_raw_transaction;
+use reth_rpc_eth_types::{error::PrivateTransactionError, utils::recover_raw_transaction, EthApiError};
 use reth_transaction_pool::{PoolTransaction, TransactionOrigin, TransactionPool};
+
+use super::private::EthPrivateTransaction;
 
 impl<Provider, Pool, Network, EvmConfig> EthTransactions
     for EthApi<Provider, Pool, Network, EvmConfig>
@@ -27,15 +29,29 @@ where
     async fn send_raw_transaction(&self, tx: Bytes) -> Result<B256, Self::Error> {
         let recovered = recover_raw_transaction(&tx)?;
 
-        // broadcast raw transaction to subscribers if there is any.
-        self.broadcast_raw_transaction(tx);
+        let transaction_origin = match self.broadcast_private_transaction() {
+            true => {
+                let private_transaction = EthPrivateTransaction;
+                let builders = private_transaction.builders();
+                if builders.is_empty() {
+                    return Err(EthApiError::PrivateTransactionError(
+                        PrivateTransactionError::FailedToGetBuilders
+                    ).into());
+                }
+                private_transaction.send_tx_to_builders(tx.clone(), builders).await?;
+                TransactionOrigin::Private
+            },
+            false => {
+                self.broadcast_raw_transaction(tx.clone());
+                TransactionOrigin::Local
+            }
+        };
 
         let pool_transaction = <Self::Pool as TransactionPool>::Transaction::from_pooled(recovered);
-
         // submit the transaction to the pool with a `Local` origin
         let hash = self
             .pool()
-            .add_transaction(TransactionOrigin::Local, pool_transaction)
+            .add_transaction(transaction_origin, pool_transaction)
             .await
             .map_err(Self::Error::from_eth_err)?;
 
@@ -95,6 +111,7 @@ mod tests {
             fee_history_cache,
             evm_config,
             DEFAULT_PROOF_PERMITS,
+            false,
         );
 
         // https://etherscan.io/tx/0xa694b71e6c128a2ed8e2e0f6770bddbe52e3bb8f10e8472f9a79ab81497a8b5d

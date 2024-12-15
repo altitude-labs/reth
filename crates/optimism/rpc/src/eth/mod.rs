@@ -325,6 +325,7 @@ impl OpEthApiBuilder {
             ctx.evm_config.clone(),
             ctx.executor.clone(),
             ctx.config.proof_permits,
+            ctx.config.private_tx_broadcasting,
         );
 
         OpEthApi {

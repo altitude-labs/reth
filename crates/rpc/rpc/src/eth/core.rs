@@ -78,6 +78,7 @@ where
         fee_history_cache: FeeHistoryCache,
         evm_config: EvmConfig,
         proof_permits: usize,
+        private_tx_broadcasting: bool,
     ) -> Self {
         let inner = EthApiInner::new(
             provider,
@@ -93,6 +94,7 @@ where
             evm_config,
             TokioTaskExecutor::default(),
             proof_permits,
+            private_tx_broadcasting,
         );
 
         Self { inner: Arc::new(inner), tx_resp_builder: EthTxBuilder }
@@ -136,6 +138,7 @@ where
             ctx.evm_config.clone(),
             ctx.executor.clone(),
             ctx.config.proof_permits,
+            ctx.config.private_tx_broadcasting,
         );
 
         Self { inner: Arc::new(inner), tx_resp_builder: EthTxBuilder }
@@ -275,6 +278,9 @@ pub struct EthApiInner<Provider: BlockReader, Pool, Network, EvmConfig> {
 
     /// Transaction broadcast channel
     raw_tx_sender: broadcast::Sender<Bytes>,
+
+    /// Private transaction broadcasting mode
+    private_tx_broadcasting: bool,
 }
 
 impl<Provider, Pool, Network, EvmConfig> EthApiInner<Provider, Pool, Network, EvmConfig>
@@ -297,6 +303,7 @@ where
         evm_config: EvmConfig,
         task_spawner: impl TaskSpawner + 'static,
         proof_permits: usize,
+        private_tx_broadcasting: bool,
     ) -> Self {
         let signers = parking_lot::RwLock::new(Default::default());
         // get the block number of the latest block
@@ -329,6 +336,7 @@ where
             evm_config,
             blocking_task_guard: BlockingTaskGuard::new(proof_permits),
             raw_tx_sender,
+            private_tx_broadcasting,
         }
     }
 }
@@ -448,6 +456,12 @@ where
     pub fn broadcast_raw_transaction(&self, raw_tx: Bytes) {
         let _ = self.raw_tx_sender.send(raw_tx);
     }
+
+    /// Broadcasts raw transactions to block builders.
+    #[inline]
+    pub const fn broadcast_private_transaction(&self) -> bool {
+        self.private_tx_broadcasting
+    }
 }
 
 #[cfg(test)]
@@ -509,6 +523,7 @@ mod tests {
             fee_history_cache,
             evm_config,
             DEFAULT_PROOF_PERMITS,
+            false,
         )
     }
 

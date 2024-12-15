@@ -42,6 +42,9 @@ pub struct EthConfig {
     pub fee_history_cache: FeeHistoryCacheConfig,
     /// The maximum number of getproof calls that can be executed concurrently.
     pub proof_permits: usize,
+    /// Use the the private sending mode for transactions. Transactions will be broadcasted to the
+    /// major ethereum block builders.
+    pub private_tx_broadcasting: bool,
 }
 
 impl EthConfig {
@@ -68,6 +71,7 @@ impl Default for EthConfig {
             stale_filter_ttl: DEFAULT_STALE_FILTER_TTL,
             fee_history_cache: FeeHistoryCacheConfig::default(),
             proof_permits: DEFAULT_PROOF_PERMITS,
+            private_tx_broadcasting: false,
         }
     }
 }
@@ -124,6 +128,12 @@ impl EthConfig {
     /// Configures the number of getproof requests
     pub const fn proof_permits(mut self, permits: usize) -> Self {
         self.proof_permits = permits;
+        self
+    }
+
+    /// Configures the private sending mode for transactions.
+    pub const fn private_tx_broadcasting(mut self, private_tx_broadcasting: bool) -> Self {
+        self.private_tx_broadcasting = private_tx_broadcasting;
         self
     }
 }
