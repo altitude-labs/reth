@@ -169,6 +169,7 @@ where
             evm_config,
             task_spawner,
             proof_permits,
+            true,
         )
     }
 

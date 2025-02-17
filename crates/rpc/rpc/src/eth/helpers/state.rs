@@ -71,6 +71,7 @@ mod tests {
             FeeHistoryCache::new(FeeHistoryCacheConfig::default()),
             evm_config,
             DEFAULT_PROOF_PERMITS,
+            false,
         )
     }
 
@@ -97,6 +98,7 @@ mod tests {
             FeeHistoryCache::new(FeeHistoryCacheConfig::default()),
             evm_config,
             DEFAULT_PROOF_PERMITS,
+            false,
         )
     }
 
