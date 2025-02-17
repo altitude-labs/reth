@@ -1,18 +1,17 @@
 //! Helper function for Receipt root calculation for Optimism hardforks.
 
-use alloy_consensus::TxReceipt;
+use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::B256;
 use alloy_trie::root::ordered_trie_root_with_encoder;
-use reth_chainspec::ChainSpec;
-use reth_optimism_forks::OpHardfork;
-use reth_optimism_primitives::OpReceipt;
+use reth_optimism_forks::OpHardforks;
+use reth_optimism_primitives::DepositReceipt;
 use reth_primitives::ReceiptWithBloom;
 
 /// Calculates the receipt root for a header.
-pub(crate) fn calculate_receipt_root_optimism(
-    receipts: &[ReceiptWithBloom<OpReceipt>],
-    chain_spec: &ChainSpec,
+pub(crate) fn calculate_receipt_root_optimism<R: DepositReceipt>(
+    receipts: &[ReceiptWithBloom<R>],
+    chain_spec: impl OpHardforks,
     timestamp: u64,
 ) -> B256 {
     // There is a minor bug in op-geth and op-erigon where in the Regolith hardfork,
@@ -20,14 +19,14 @@ pub(crate) fn calculate_receipt_root_optimism(
     // encoding. In the Regolith Hardfork, we must strip the deposit nonce from the
     // receipts before calculating the receipt root. This was corrected in the Canyon
     // hardfork.
-    if chain_spec.is_fork_active_at_timestamp(OpHardfork::Regolith, timestamp) &&
-        !chain_spec.is_fork_active_at_timestamp(OpHardfork::Canyon, timestamp)
+    if chain_spec.is_regolith_active_at_timestamp(timestamp) &&
+        !chain_spec.is_canyon_active_at_timestamp(timestamp)
     {
         let receipts = receipts
             .iter()
             .cloned()
             .map(|mut r| {
-                if let OpReceipt::Deposit(receipt) = &mut r.receipt {
+                if let Some(receipt) = r.receipt.as_deposit_receipt_mut() {
                     receipt.deposit_nonce = None;
                 }
                 r
@@ -40,12 +39,12 @@ pub(crate) fn calculate_receipt_root_optimism(
     ordered_trie_root_with_encoder(receipts, |r, buf| r.encode_2718(buf))
 }
 
-/// Calculates the receipt root for a header for the reference type of [`OpReceipt`].
+/// Calculates the receipt root for a header for the reference type of an OP receipt.
 ///
 /// NOTE: Prefer calculate receipt root optimism if you have log blooms memoized.
-pub fn calculate_receipt_root_no_memo_optimism(
-    receipts: &[&OpReceipt],
-    chain_spec: impl reth_chainspec::Hardforks,
+pub fn calculate_receipt_root_no_memo_optimism<R: DepositReceipt>(
+    receipts: &[R],
+    chain_spec: impl OpHardforks,
     timestamp: u64,
 ) -> B256 {
     // There is a minor bug in op-geth and op-erigon where in the Regolith hardfork,
@@ -53,15 +52,15 @@ pub fn calculate_receipt_root_no_memo_optimism(
     // encoding. In the Regolith Hardfork, we must strip the deposit nonce from the
     // receipts before calculating the receipt root. This was corrected in the Canyon
     // hardfork.
-    if chain_spec.is_fork_active_at_timestamp(OpHardfork::Regolith, timestamp) &&
-        !chain_spec.is_fork_active_at_timestamp(OpHardfork::Canyon, timestamp)
+    if chain_spec.is_regolith_active_at_timestamp(timestamp) &&
+        !chain_spec.is_canyon_active_at_timestamp(timestamp)
     {
         let receipts = receipts
             .iter()
             .map(|r| {
                 let mut r = (*r).clone();
-                if let OpReceipt::Deposit(r) = &mut r {
-                    r.deposit_nonce = None;
+                if let Some(receipt) = r.as_deposit_receipt_mut() {
+                    receipt.deposit_nonce = None;
                 }
                 r
             })
@@ -84,6 +83,7 @@ mod tests {
     use alloy_primitives::{b256, bloom, hex, Address, Bloom, Bytes, Log, LogData};
     use op_alloy_consensus::OpDepositReceipt;
     use reth_optimism_chainspec::BASE_SEPOLIA;
+    use reth_optimism_primitives::OpReceipt;
     use reth_primitives::ReceiptWithBloom;
 
     /// Tests that the receipt root is computed correctly for the regolith block.

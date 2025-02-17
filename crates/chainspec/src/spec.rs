@@ -1,6 +1,6 @@
 pub use alloy_eips::eip1559::BaseFeeParams;
 
-use crate::{constants::MAINNET_DEPOSIT_CONTRACT, once_cell_set, EthChainSpec, LazyLock, OnceLock};
+use crate::{constants::MAINNET_DEPOSIT_CONTRACT, once_cell_set, EthChainSpec};
 use alloc::{boxed::Box, collections::BTreeMap, string::String, sync::Arc, vec::Vec};
 use alloy_chains::{Chain, NamedChain};
 use alloy_consensus::{
@@ -11,10 +11,8 @@ use alloy_consensus::{
     Header,
 };
 use alloy_eips::{
-    eip1559::INITIAL_BASE_FEE,
-    eip6110::MAINNET_DEPOSIT_CONTRACT_ADDRESS,
-    eip7685::EMPTY_REQUESTS_HASH,
-    eip7840::{BlobParams, BlobScheduleItem},
+    eip1559::INITIAL_BASE_FEE, eip6110::MAINNET_DEPOSIT_CONTRACT_ADDRESS,
+    eip7685::EMPTY_REQUESTS_HASH, eip7840::BlobParams,
 };
 use alloy_genesis::Genesis;
 use alloy_primitives::{address, b256, Address, BlockNumber, B256, U256};
@@ -28,7 +26,10 @@ use reth_network_peers::{
     base_nodes, base_testnet_nodes, holesky_nodes, mainnet_nodes, op_nodes, op_testnet_nodes,
     sepolia_nodes, NodeRecord,
 };
-use reth_primitives_traits::SealedHeader;
+use reth_primitives_traits::{
+    sync::{LazyLock, OnceLock},
+    SealedHeader,
+};
 
 /// The Ethereum mainnet spec
 pub static MAINNET: LazyLock<Arc<ChainSpec>> = LazyLock::new(|| {
@@ -171,7 +172,7 @@ pub struct HardforkBlobParams {
 impl HardforkBlobParams {
     /// Constructs params for chainspec from a provided blob schedule.
     /// Falls back to defaults if the schedule is empty.
-    pub fn from_schedule(blob_schedule: &BTreeMap<String, BlobScheduleItem>) -> Self {
+    pub fn from_schedule(blob_schedule: &BTreeMap<String, BlobParams>) -> Self {
         let extract = |key: &str, default: fn() -> BlobParams| {
             blob_schedule
                 .get(key)
@@ -608,7 +609,7 @@ impl ChainSpec {
                             return Some(block_num);
                         }
                     }
-                    ForkCondition::Block(_) | ForkCondition::Never => continue,
+                    ForkCondition::Block(_) | ForkCondition::Never => {}
                 }
             }
         }
@@ -641,6 +642,7 @@ impl From<Genesis> for ChainSpec {
     fn from(genesis: Genesis) -> Self {
         // Block-based hardforks
         let hardfork_opts = [
+            (EthereumHardfork::Frontier.boxed(), Some(0)),
             (EthereumHardfork::Homestead.boxed(), genesis.config.homestead_block),
             (EthereumHardfork::Dao.boxed(), genesis.config.dao_fork_block),
             (EthereumHardfork::Tangerine.boxed(), genesis.config.eip150_block),
@@ -762,6 +764,10 @@ impl Hardforks for ChainSpec {
 }
 
 impl EthereumHardforks for ChainSpec {
+    fn ethereum_fork_activation(&self, fork: EthereumHardfork) -> ForkCondition {
+        self.fork(fork)
+    }
+
     fn get_final_paris_total_difficulty(&self) -> Option<U256> {
         self.get_final_paris_total_difficulty()
     }
@@ -1377,7 +1383,11 @@ Post-merge hard forks (timestamp based):
                 ),
                 (
                     EthereumHardfork::Cancun,
-                    ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 0 },
+                    ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 1741159776 },
+                ),
+                (
+                    EthereumHardfork::Prague,
+                    ForkId { hash: ForkHash([0xed, 0x88, 0xb5, 0xfd]), next: 0 },
                 ),
             ],
         );
@@ -1491,7 +1501,17 @@ Post-merge hard forks (timestamp based):
                 // First Cancun block
                 (
                     Head { number: 123, timestamp: 1707305664, ..Default::default() },
-                    ForkId { hash: ForkHash([0x9b, 0x19, 0x2a, 0xd0]), next: 0 },
+                    ForkId { hash: ForkHash([0x9b, 0x19, 0x2a, 0xd0]), next: 1740434112 },
+                ),
+                // Last Cancun block
+                (
+                    Head { number: 123, timestamp: 1740434111, ..Default::default() },
+                    ForkId { hash: ForkHash([0x9b, 0x19, 0x2a, 0xd0]), next: 1740434112 },
+                ),
+                // First Prague block
+                (
+                    Head { number: 123, timestamp: 1740434112, ..Default::default() },
+                    ForkId { hash: ForkHash([0xdf, 0xbd, 0x9b, 0xed]), next: 0 },
                 ),
             ],
         )
@@ -1520,18 +1540,28 @@ Post-merge hard forks (timestamp based):
                 ),
                 // First Shanghai block
                 (
-                    Head { number: 1735372, timestamp: 1677557088, ..Default::default() },
+                    Head { number: 1735373, timestamp: 1677557088, ..Default::default() },
                     ForkId { hash: ForkHash([0xf7, 0xf9, 0xbc, 0x08]), next: 1706655072 },
                 ),
                 // Last Shanghai block
                 (
-                    Head { number: 1735372, timestamp: 1706655071, ..Default::default() },
+                    Head { number: 1735374, timestamp: 1706655071, ..Default::default() },
                     ForkId { hash: ForkHash([0xf7, 0xf9, 0xbc, 0x08]), next: 1706655072 },
                 ),
                 // First Cancun block
                 (
-                    Head { number: 1735372, timestamp: 1706655072, ..Default::default() },
-                    ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 0 },
+                    Head { number: 1735375, timestamp: 1706655072, ..Default::default() },
+                    ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 1741159776 },
+                ),
+                // Last Cancun block
+                (
+                    Head { number: 1735376, timestamp: 1741159775, ..Default::default() },
+                    ForkId { hash: ForkHash([0x88, 0xcf, 0x81, 0xd9]), next: 1741159776 },
+                ),
+                // First Prague block
+                (
+                    Head { number: 1735377, timestamp: 1741159776, ..Default::default() },
+                    ForkId { hash: ForkHash([0xed, 0x88, 0xb5, 0xfd]), next: 0 },
                 ),
             ],
         );
@@ -2360,6 +2390,7 @@ Post-merge hard forks (timestamp based):
 
         let hardforks: Vec<_> = chain_spec.hardforks.forks_iter().map(|(h, _)| h).collect();
         let expected_hardforks = vec![
+            EthereumHardfork::Frontier.boxed(),
             EthereumHardfork::Homestead.boxed(),
             EthereumHardfork::Dao.boxed(),
             EthereumHardfork::Tangerine.boxed(),
